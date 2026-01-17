@@ -8,6 +8,7 @@ import { cat } from './cat';
 import { mkdir } from './mkdir';
 import { clear } from './clear';
 import { help } from './help';
+import { open } from './open';
 
 // Re-export individual commands
 export { pwd } from './pwd';
@@ -19,6 +20,7 @@ export { cat } from './cat';
 export { mkdir } from './mkdir';
 export { clear } from './clear';
 export { help } from './help';
+export { open } from './open';
 
 /**
  * Default commands map for /bin
@@ -33,4 +35,5 @@ export const defaultCommands: Map<string, CommandEntry> = new Map([
   ['mkdir', mkdir],
   ['clear', clear],
   ['help', help],
+  ['open', open],
 ]);

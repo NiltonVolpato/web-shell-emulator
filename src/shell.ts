@@ -27,6 +27,8 @@ export interface ShellOptions {
   onInput?: (handler: (data: string) => void) => void;
   /** Chalk color level (0=none, 1=basic, 2=256, 3=truecolor). Default: 3 */
   colorLevel?: 0 | 1 | 2 | 3;
+  /** Callback when the open command is invoked */
+  onOpen?: (url: string) => void;
 }
 
 export class Shell {
@@ -39,6 +41,7 @@ export class Shell {
   private inputBuffer: string = '';
   private promptFn: (shell: Shell) => string;
   private onInputCallback?: (handler: (data: string) => void) => void;
+  private onOpenCallback?: (url: string) => void;
   // Cache for lazy-loaded commands (path -> loaded function)
   private loadedCommands: Map<string, CommandFn> = new Map();
   // Command history
@@ -72,6 +75,7 @@ export class Shell {
         shell.chalk.hex('#56b6c2')(`${shell.cwd}`) +
         '$ ');
     this.onInputCallback = options.onInput;
+    this.onOpenCallback = options.onOpen;
   }
 
   /** Current working directory */
@@ -85,10 +89,49 @@ export class Shell {
     this.env.set('PWD', path);
   }
 
-  start(): void {
+  async start(): Promise<void> {
     this.printWelcome();
+    await this.sourceProfile();
     this.printPrompt();
     this.onInputCallback?.((data) => this.handleInput(data));
+  }
+
+  /**
+   * Source profile files (.profile, .bashrc) on startup
+   */
+  private async sourceProfile(): Promise<void> {
+    const home = this.env.get('HOME') || '/';
+    const profilePaths = [
+      `${home}/.profile`,
+      `${home}/.bashrc`,
+    ];
+
+    for (const profilePath of profilePaths) {
+      try {
+        if (!this.fs.existsSync(profilePath)) {
+          continue;
+        }
+
+        const content = this.fs.readFileSync(profilePath, 'utf-8');
+        for (const line of content.split('\n')) {
+          const trimmed = line.trim();
+          // Skip empty lines and comments
+          if (!trimmed || trimmed.startsWith('#')) {
+            continue;
+          }
+          // Execute the line (errors are silently ignored during profile sourcing)
+          try {
+            await this.executeCommand(trimmed);
+          } catch {
+            // Ignore errors during profile sourcing
+          }
+        }
+        // Only source the first found profile
+        break;
+      } catch {
+        // Profile doesn't exist or can't be read, continue
+      }
+    }
   }
 
   private printWelcome(): void {
@@ -197,7 +240,7 @@ export class Shell {
       }
       this.historyIndex = -1;
 
-      this.executeCommand(line);
+      this.executeCommandFromInput(line);
       return;
     }
 
@@ -300,19 +343,23 @@ export class Shell {
     // Resolve the directory to search in
     let searchDir: string;
     let filePrefix: string;
+    let dirPrefix: string; // The prefix to prepend to completions
 
     if (prefix.includes('/')) {
       const lastSlash = prefix.lastIndexOf('/');
       searchDir = prefix.slice(0, lastSlash) || '/';
       filePrefix = prefix.slice(lastSlash + 1);
+      // Keep the original path prefix (up to and including the last slash)
+      dirPrefix = prefix.slice(0, lastSlash + 1);
 
-      // Resolve relative paths
+      // Resolve relative paths for searching
       if (!searchDir.startsWith('/')) {
         searchDir = this.resolvePath(searchDir);
       }
     } else {
       searchDir = this.cwd;
       filePrefix = prefix;
+      dirPrefix = ''; // No directory prefix for bare filenames
     }
 
     try {
@@ -324,12 +371,12 @@ export class Shell {
           try {
             const stat = this.fs.statSync(fullPath);
             if (stat.isDirectory()) {
-              completions.push(entry + '/');
+              completions.push(dirPrefix + entry + '/');
             } else {
-              completions.push(entry);
+              completions.push(dirPrefix + entry);
             }
           } catch {
-            completions.push(entry);
+            completions.push(dirPrefix + entry);
           }
         }
       }
@@ -340,10 +387,13 @@ export class Shell {
     return completions.sort();
   }
 
-  private async executeCommand(line: string): Promise<void> {
+  /**
+   * Execute a command line and return the exit code.
+   * This is the public API for running commands programmatically.
+   */
+  async executeCommand(line: string): Promise<number> {
     if (!line) {
-      this.printPrompt();
-      return;
+      return 0;
     }
 
     // Parse the command using bash-parser
@@ -358,13 +408,11 @@ export class Shell {
       } else {
         this.stderr.write(`Error: ${err}\r\n`);
       }
-      this.printPrompt();
-      return;
+      return 1;
     }
 
     if (!parsed) {
-      this.printPrompt();
-      return;
+      return 0;
     }
 
     const { name: cmdName, args } = parsed;
@@ -372,8 +420,7 @@ export class Shell {
     const commandFn = await this.resolveCommand(cmdName);
     if (!commandFn) {
       this.stderr.write(`${cmdName}: command not found\r\n`);
-      this.printPrompt();
-      return;
+      return 127;
     }
 
     const ctx: CommandContext = {
@@ -384,17 +431,24 @@ export class Shell {
       stderr: this.stderr,
       fs: this.fs,
       setCwd: (path: string) => { this.cwd = path; },
+      onOpen: this.onOpenCallback,
     };
 
     try {
       const exitCode = await commandFn(ctx);
       // Store exit code in env
       this.env.set('?', String(exitCode ?? 0));
+      return exitCode ?? 0;
     } catch (err) {
       this.stderr.write(`Error: ${err}\r\n`);
       this.env.set('?', '1');
+      return 1;
     }
+  }
 
+  /** Internal: execute command from input and print prompt after */
+  private async executeCommandFromInput(line: string): Promise<void> {
+    await this.executeCommand(line);
     this.printPrompt();
   }
 

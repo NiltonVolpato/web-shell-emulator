@@ -23,6 +23,7 @@ describe('commands', () => {
       env: new Map([
         ['HOME', '/home/guest'],
         ['USER', 'guest'],
+        ['PATH', '/bin'],
       ]),
       cwd,
       stdout,
@@ -49,6 +50,14 @@ describe('commands', () => {
     fs.mkdirSync('/home/guest/docs', { recursive: true });
     fs.writeFileSync('/home/guest/file.txt', 'Hello, World!\n');
     fs.writeFileSync('/home/guest/docs/notes.txt', 'Some notes\n');
+
+    // Create /bin with command files for help test
+    fs.mkdirSync('/bin', { recursive: true });
+    fs.writeFileSync('/bin/pwd', '');
+    fs.writeFileSync('/bin/ls', '');
+    fs.writeFileSync('/bin/cd', '');
+    fs.writeFileSync('/bin/cat', '');
+    fs.writeFileSync('/bin/help', '');
   });
 
   describe('pwd', () => {

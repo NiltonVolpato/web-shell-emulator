@@ -1,4 +1,5 @@
 import type { CommandFn } from '../types';
+import { hyperlink } from '../hyperlink';
 
 export const ls: CommandFn = (ctx) => {
   const target = ctx.args[0] || ctx.cwd;
@@ -46,8 +47,14 @@ export const ls: CommandFn = (ctx) => {
 
       // Output
       for (const item of items) {
+        const entryPath = path === '/' ? `/${item.name}` : `${path}/${item.name}`;
+
         if (item.isDir) {
           ctx.stdout.write(`\x1b[1;34m${item.name}/\x1b[0m\r\n`);
+        } else if (entryPath.startsWith('/site/')) {
+          // For /site/* files, make them clickable hyperlinks
+          const url = entryPath.slice(5).replace(/\.md$/, ''); // /site/about.md -> /about
+          ctx.stdout.write(hyperlink(url, item.name) + '\r\n');
         } else {
           ctx.stdout.write(`${item.name}\r\n`);
         }

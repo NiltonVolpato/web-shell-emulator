@@ -13,6 +13,8 @@ export interface CommandContext {
   fs: typeof fs;
   /** Change the current working directory (for cd command) */
   setCwd: (path: string) => void;
+  /** Open a URL in the split view browser (for open command) */
+  onOpen?: (url: string) => void;
 }
 
 /** A command function that executes with the given context and returns an exit code */

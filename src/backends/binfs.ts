@@ -64,11 +64,17 @@ export const BinFS: Backend<StoreFS<InMemoryStore>, BinFSOptions> = {
     // Store the commands map for this filesystem instance
     commandStores.set(fs, commands);
 
-    // Create a file for each command
+    // Create a file for each command with placeholder content
+    const encoder = new TextEncoder();
     for (const name of commands.keys()) {
-      // Create an empty executable file for each command
-      // The file content doesn't matter - it's just a marker
+      // Create executable file for each command
       fs.createFileSync(`/${name}`, { mode: 0o755, uid: 0, gid: 0 });
+      // Write placeholder content (avoids ghostty-web buffer issues with empty files)
+      const content = `#!/bin/sh\n# Built-in command: ${name}\n`;
+      const data = encoder.encode(content);
+      fs.writeSync(`/${name}`, data, 0);
+      // Update file size (writeSync doesn't update inode size)
+      fs.touchSync(`/${name}`, { size: data.byteLength });
     }
 
     return fs;
