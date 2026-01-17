@@ -28,6 +28,7 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
+    "@zenfs/core": "^2.4.4",
     "ghostty-web": "^0.4.0"
   }
 }
