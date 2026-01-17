@@ -12,8 +12,8 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
-      name: 'WebTerminal',
-      fileName: 'web-terminal',
+      name: 'WebShell',
+      fileName: 'web-shell',
     },
   },
 });

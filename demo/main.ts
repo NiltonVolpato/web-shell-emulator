@@ -2,7 +2,7 @@ import { init, Terminal, FitAddon } from 'ghostty-web';
 import { configure, fs, mounts, InMemory } from '@zenfs/core';
 import { Shell } from '../src/shell';
 import { BinFS } from '../src/backends/binfs';
-import { defaultCommands } from '../src/commands';
+import { defaultCommands } from '../src/commands/index';
 
 // Initialize ghostty-web WASM
 await init();
@@ -15,8 +15,11 @@ await configure({
   },
 });
 
-// Create home directory
+// Create home directory and some sample content
 fs.mkdirSync('/home/guest', { recursive: true });
+fs.mkdirSync('/home/guest/documents', { recursive: true });
+fs.writeFileSync('/home/guest/welcome.txt', 'Welcome to Web Terminal!\n\nThis is a simulated Linux shell running in your browser.\n');
+fs.writeFileSync('/home/guest/documents/notes.txt', 'Some notes here...\n');
 
 // Create terminal
 const term = new Terminal({

@@ -11,6 +11,8 @@ export interface CommandContext {
   stdout: ShellOutput;
   stderr: ShellOutput;
   fs: typeof fs;
+  /** Change the current working directory (for cd command) */
+  setCwd: (path: string) => void;
 }
 
 /** A command function that executes with the given context and returns an exit code */
