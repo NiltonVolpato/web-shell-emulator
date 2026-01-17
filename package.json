@@ -1,0 +1,33 @@
+{
+  "name": "web-terminal-emulator",
+  "version": "0.1.0",
+  "description": "An implementation of a simplified linux shell that runs in the browser.",
+  "license": "ISC",
+  "author": "Nilton Volpato <nilton@volpa.to>",
+  "type": "module",
+  "main": "dist/web-terminal.umd.cjs",
+  "module": "dist/web-terminal.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/web-terminal.js",
+      "require": "./dist/web-terminal.umd.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite demo",
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  },
+  "dependencies": {
+    "ghostty-web": "^0.4.0"
+  }
+}
