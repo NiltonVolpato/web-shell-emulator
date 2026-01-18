@@ -2,25 +2,13 @@ import type { CommandFn } from '../types';
 
 export const open: CommandFn = (ctx) => {
   if (ctx.args.length === 0) {
-    ctx.stderr.write('open: missing file or URL operand\r\n');
+    ctx.stderr.write('open: missing file operand\r\n');
     return 1;
   }
 
   const arg = ctx.args[0];
 
-  // Check if it's a URL (http://, https://, or www.)
-  if (arg.startsWith('http://') || arg.startsWith('https://') || arg.startsWith('www.')) {
-    // It's a URL - pass directly to onOpen
-    if (ctx.onOpen) {
-      ctx.onOpen(arg);
-      return 0;
-    } else {
-      ctx.stderr.write(`open: browser not available\r\n`);
-      return 1;
-    }
-  }
-
-  // It's a file path - resolve it
+  // Resolve file path
   let path: string;
   if (arg.startsWith('/')) {
     path = arg;

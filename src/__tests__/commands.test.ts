@@ -228,4 +228,5 @@ describe('commands', () => {
       expect(output).toContain('cd');
     });
   });
+
 });

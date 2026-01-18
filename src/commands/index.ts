@@ -9,6 +9,8 @@ import { mkdir } from './mkdir';
 import { clear } from './clear';
 import { help } from './help';
 import { open } from './open';
+import { emacs } from './emacs';
+import { cowsayCmd } from './cowsay';
 
 // Re-export individual commands
 export { pwd } from './pwd';
@@ -21,6 +23,8 @@ export { mkdir } from './mkdir';
 export { clear } from './clear';
 export { help } from './help';
 export { open } from './open';
+export { emacs } from './emacs';
+export { cowsayCmd } from './cowsay';
 
 /**
  * Default commands map for /bin
@@ -36,4 +40,6 @@ export const defaultCommands: Map<string, CommandEntry> = new Map([
   ['clear', clear],
   ['help', help],
   ['open', open],
+  ['emacs', emacs],
+  ['cowsay', cowsayCmd],
 ]);

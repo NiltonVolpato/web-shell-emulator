@@ -29,6 +29,8 @@ export interface ShellOptions {
   colorLevel?: 0 | 1 | 2 | 3;
   /** Callback when the open command is invoked */
   onOpen?: (url: string) => void;
+  /** Callback when the emacs command is invoked */
+  onEmacs?: (path: string) => void;
 }
 
 export class Shell {
@@ -39,9 +41,11 @@ export class Shell {
   private env: Map<string, string>;
   private _cwd: string;
   private inputBuffer: string = '';
+  private cursorPos: number = 0; // Cursor position within inputBuffer
   private promptFn: (shell: Shell) => string;
   private onInputCallback?: (handler: (data: string) => void) => void;
   private onOpenCallback?: (url: string) => void;
+  private onEmacsCallback?: (path: string) => void;
   // Cache for lazy-loaded commands (path -> loaded function)
   private loadedCommands: Map<string, CommandFn> = new Map();
   // Command history
@@ -76,6 +80,7 @@ export class Shell {
         '$ ');
     this.onInputCallback = options.onInput;
     this.onOpenCallback = options.onOpen;
+    this.onEmacsCallback = options.onEmacs;
   }
 
   /** Current working directory */
@@ -166,10 +171,18 @@ export class Shell {
           this.historyDown();
           this.escapeBuffer = '';
         } else if (this.escapeBuffer === '\x1b[C') {
-          // Right arrow - ignore for now
+          // Right arrow - move cursor right
+          if (this.cursorPos < this.inputBuffer.length) {
+            this.cursorPos++;
+            this.stdout.write('\x1b[C'); // Move cursor right
+          }
           this.escapeBuffer = '';
         } else if (this.escapeBuffer === '\x1b[D') {
-          // Left arrow - ignore for now
+          // Left arrow - move cursor left
+          if (this.cursorPos > 0) {
+            this.cursorPos--;
+            this.stdout.write('\x1b[D'); // Move cursor left
+          }
           this.escapeBuffer = '';
         } else if (this.escapeBuffer.length >= 3) {
           // Unknown escape sequence, discard
@@ -218,12 +231,18 @@ export class Shell {
   }
 
   private replaceInputLine(newLine: string): void {
+    // Move cursor to start of input
+    if (this.cursorPos > 0) {
+      this.stdout.write('\x1b[' + this.cursorPos + 'D');
+    }
+
     // Clear current line
     const clearLen = this.inputBuffer.length;
-    this.stdout.write('\b'.repeat(clearLen) + ' '.repeat(clearLen) + '\b'.repeat(clearLen));
+    this.stdout.write(' '.repeat(clearLen) + '\b'.repeat(clearLen));
 
     // Write new line
     this.inputBuffer = newLine;
+    this.cursorPos = newLine.length;
     this.stdout.write(newLine);
   }
 
@@ -233,6 +252,7 @@ export class Shell {
       this.stdout.write('\r\n');
       const line = this.inputBuffer.trim();
       this.inputBuffer = '';
+      this.cursorPos = 0;
 
       // Add to history if non-empty and different from last
       if (line && (this.history.length === 0 || this.history[this.history.length - 1] !== line)) {
@@ -245,10 +265,15 @@ export class Shell {
     }
 
     if (char === '\x7f' || char === '\b') {
-      // Backspace
-      if (this.inputBuffer.length > 0) {
-        this.inputBuffer = this.inputBuffer.slice(0, -1);
-        this.stdout.write('\b \b');
+      // Backspace - delete character before cursor
+      if (this.cursorPos > 0) {
+        const before = this.inputBuffer.slice(0, this.cursorPos - 1);
+        const after = this.inputBuffer.slice(this.cursorPos);
+        this.inputBuffer = before + after;
+        this.cursorPos--;
+
+        // Move cursor back, rewrite rest of line, clear last char, move cursor back
+        this.stdout.write('\b' + after + ' ' + '\b'.repeat(after.length + 1));
       }
       return;
     }
@@ -257,6 +282,7 @@ export class Shell {
       // Ctrl+C - cancel current input
       this.stdout.write('^C\r\n');
       this.inputBuffer = '';
+      this.cursorPos = 0;
       this.historyIndex = -1;
       this.printPrompt();
       return;
@@ -273,9 +299,17 @@ export class Shell {
       return;
     }
 
-    // Regular character - echo and add to buffer
-    this.inputBuffer += char;
-    this.stdout.write(char);
+    // Regular character - insert at cursor position
+    const before = this.inputBuffer.slice(0, this.cursorPos);
+    const after = this.inputBuffer.slice(this.cursorPos);
+    this.inputBuffer = before + char + after;
+    this.cursorPos++;
+
+    // Write char + rest of line, then move cursor back to position
+    this.stdout.write(char + after);
+    if (after.length > 0) {
+      this.stdout.write('\x1b[' + after.length + 'D'); // Move cursor back
+    }
   }
 
   private handleTabCompletion(): void {
@@ -432,6 +466,7 @@ export class Shell {
       fs: this.fs,
       setCwd: (path: string) => { this.cwd = path; },
       onOpen: this.onOpenCallback,
+      onEmacs: this.onEmacsCallback,
     };
 
     try {

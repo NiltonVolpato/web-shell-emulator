@@ -15,6 +15,8 @@ export interface CommandContext {
   setCwd: (path: string) => void;
   /** Open a URL in the split view browser (for open command) */
   onOpen?: (url: string) => void;
+  /** Open a file in the emacs editor (for emacs command) */
+  onEmacs?: (path: string) => void;
 }
 
 /** A command function that executes with the given context and returns an exit code */

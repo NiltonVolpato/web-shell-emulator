@@ -26,6 +26,3 @@ export * from './commands/index';
 
 // Testing utilities
 export { StringOutput } from './testing';
-
-// Hyperlink utilities
-export { hyperlink, fileLink } from './hyperlink';
